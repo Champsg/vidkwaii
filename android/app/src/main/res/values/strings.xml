@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Meta (Facebook) App ID - developers.facebook.com > your app > Settings > Basic -->
+    <string name="facebook_app_id" translatable="false">2137477226980835</string>
+
+    <!-- Meta Client Token - developers.facebook.com > App settings > Advanced >
+         Security. Required: the SDK sends no app events without it. -->
+    <string name="facebook_client_token" translatable="false">ed1f15f49055a61ab01b008a2f83ad9f</string>
+</resources>

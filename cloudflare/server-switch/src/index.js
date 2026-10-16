@@ -10,7 +10,7 @@
  *   GITHUB_TOKEN    - fine-grained PAT with Contents: Read and write
  */
 
-const REPO = 'Champsg/media-hub-app';
+const REPO = 'Champsg/vidkwaii';
 const BRANCH = 'main';
 const CONFIG_PATH = 'config.json';
 const RAW_URL = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/' + CONFIG_PATH;
@@ -231,7 +231,10 @@ async function checkHealth(target) {
     const res = await fetch(base + '/health', { signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS), headers: { 'cache-control': 'no-cache' } });
     const latencyMs = Date.now() - started;
     let data = null;
-    try { data = await res.json(); } catch (e) { data = null; }
+    try {
+      const text = await res.clone().text();
+      try { data = JSON.parse(text); } catch (e) { data = text.slice(0, 200); }
+    } catch (e) { data = null; }
     return { ok: res.ok, status: res.status, latencyMs, data };
   } catch (err) {
     return { ok: false, status: 0, latencyMs: Date.now() - started, error: String((err && err.message) || err) };
@@ -349,6 +352,15 @@ function getServers() {
 
 function saveServers(list) { localStorage.setItem(LS_SERVERS, JSON.stringify(list)); }
 
+function explainFailure(result) {
+  if (result.status === 404 && String(result.data || '').indexOf('1042') !== -1) return 'Cloudflare blocks a Worker from calling another Worker on the same workers.dev domain (error 1042). Test the origin server instead';
+  if (result.status === 404) return '404 - no /health at that address. Use the API base URL only, with no path and no /config.json';
+  if (result.status === 401) return '401 - that address is the switch panel itself, not the API';
+  if (result.status === 403) return '403 - Cloudflare refuses to fetch a bare IP address. Use a hostname';
+  if (!result.status) return 'no connection: ' + (result.error || 'unreachable');
+  return 'HTTP ' + result.status;
+}
+
 function trimSlash(value) {
   let s = String(value);
   while (s.length > 0 && s.charAt(s.length - 1) === '/') s = s.slice(0, -1);
@@ -422,8 +434,9 @@ async function testServer(url, index) {
       cell.className = 'status ok'; cell.textContent = 'online ' + r.latencyMs + 'ms';
       log(url + ' - ' + (info.service || 'ok') + ' v' + (info.version || '?') + ', redis ' + (info.redis ? 'ok' : 'off') + ', ffmpeg ' + (info.ffmpeg ? 'ok' : 'off'), 'ok');
     } else {
-      cell.className = 'status bad'; cell.textContent = 'no answer';
-      log(url + ' - no answer (' + (r.error || ('HTTP ' + r.status)) + ')', 'bad');
+      const reason = explainFailure(r);
+      cell.className = 'status bad'; cell.textContent = r.status === 404 ? '404' : 'no answer';
+      log(url + ' - ' + reason, 'bad');
     }
   } catch (err) {
     cell.className = 'status bad'; cell.textContent = 'error';

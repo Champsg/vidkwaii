@@ -233,18 +233,9 @@ class _WelcomeHeader extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Welcome',
+                  'VidKwaii',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Instagram Video\nDownloader',
-                  style: TextStyle(
-                    fontSize: 26,
+                    fontSize: 28,
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                     height: 1.2,

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 
 import '../../core/config/ad_config.dart';
@@ -23,10 +22,10 @@ class AdService {
   Completer<bool>? _showCompleter;
   Timer? _retryTimer;
   Timer? _showWatchdog;
-  _LifecycleWatcher? _lifecycle;
   DateTime? _showStartedAt;
   int _loadAttempts = 0;
   bool _rewardGranted = false;
+  bool _adStarted = false;
   String _status = 'Not started';
 
   /// Whether an ad is loaded and ready to display right now.
@@ -58,12 +57,6 @@ class AdService {
   Future<void> _init() async {
     final done = Completer<void>();
 
-    // The ad runs in its own activity, so our app is paused while it plays and
-    // resumed when it goes away. Watch that so a dismissed ad can never leave
-    // the service believing one is still on screen.
-    _lifecycle ??= _LifecycleWatcher(onResumed: _onAppResumed);
-    WidgetsBinding.instance.addObserver(_lifecycle!);
-
     try {
       await UnityAds.init(
         gameId: AdConfig.gameId,
@@ -80,7 +73,9 @@ class AdService {
           debugPrint('[AdService] Unity Ads init failed: $error $message');
           if (!done.isCompleted) done.complete();
         },
-      );
+      )
+          .timeout(const Duration(seconds: 10), onTimeout: () {})
+          .catchError((Object _) {});
     } catch (error) {
       _status = 'SDK init error: $error';
       debugPrint('[AdService] Unity Ads init threw: $error');
@@ -160,6 +155,7 @@ class AdService {
     _showStartedAt = DateTime.now();
     _adReady = false;
     _rewardGranted = false;
+    _adStarted = false;
     _status = 'Showing ad';
 
     // Safety net: playable ads, or ads that hand the user off to the Play
@@ -176,7 +172,10 @@ class AdService {
     try {
       await UnityAds.showVideoAd(
         placementId: AdConfig.rewardedPlacementId,
-        onStart: (placementId) => _status = 'Ad playing',
+        onStart: (placementId) {
+          _adStarted = true;
+          _status = 'Ad playing';
+        },
         onClick: (placementId) => _status = 'Ad clicked',
         onSkipped: (placementId) {
           _status = 'Ad skipped';
@@ -200,27 +199,21 @@ class AdService {
       _finishShow(false);
     }
 
+    // If the SDK never opened an ad (ad blocker, or nothing to show), stop
+    // making the caller wait. Deliberately leave the SDK and its state alone:
+    // no reload, no reset. A slow ad that does appear is still tracked, and
+    // touching the SDK here is what used to break the ad's own close button.
+    if (!_adStarted) {
+      _status = 'Ad did not start';
+      return false;
+    }
+
     return completer.future;
   }
 
   void dispose() {
     _retryTimer?.cancel();
     _showWatchdog?.cancel();
-    final lifecycle = _lifecycle;
-    if (lifecycle != null) WidgetsBinding.instance.removeObserver(lifecycle);
-  }
-
-  void _onAppResumed() {
-    if (_showCompleter == null) return;
-    final startedAt = _showStartedAt;
-    // Give the SDK a moment to deliver its own callback, otherwise treat the
-    // resume as "the ad is gone".
-    if (startedAt != null &&
-        DateTime.now().difference(startedAt) < const Duration(seconds: 3)) {
-      return;
-    }
-    _status = 'Ad closed';
-    _finishShow(_rewardGranted);
   }
 
   void _completeLoad() {
@@ -241,18 +234,5 @@ class AdService {
     if (!completer.isCompleted) completer.complete(rewarded);
     // Prepare the next ad.
     _loadRewarded();
-  }
-}
-
-/// Reports app resumes so an ad that was dismissed without a callback cannot
-/// leave the service stuck.
-class _LifecycleWatcher with WidgetsBindingObserver {
-  _LifecycleWatcher({required this.onResumed});
-
-  final VoidCallback onResumed;
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) onResumed();
   }
 }

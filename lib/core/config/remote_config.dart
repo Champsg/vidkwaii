@@ -23,7 +23,7 @@ class RemoteConfig {
   /// Always-available fallback: a raw file in the project's GitHub repo.
   /// Editing that file on github.com takes effect on the next app launch.
   static const String githubUrl =
-      'https://raw.githubusercontent.com/Champsg/media-hub-app/main/config.json';
+      'https://raw.githubusercontent.com/Champsg/vidkwaii/main/config.json';
 
   /// Sources are tried in order; the first valid payload wins.
   static List<String> get sources => [

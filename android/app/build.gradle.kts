@@ -75,4 +75,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-appset:16.0.2")
     implementation("com.google.android.gms:play-services-ads-identifier:18.0.1")
     implementation("com.google.android.gms:play-services-basement:18.3.0")
+
+    // Meta (Facebook) App Events SDK - logs installs and app activations so
+    // Meta can attribute App Install campaigns.
+    implementation("com.facebook.android:facebook-android-sdk:18.3.0")
 }

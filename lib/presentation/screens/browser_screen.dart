@@ -156,75 +156,71 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
                         size: 18,
                       ),
                       const SizedBox(width: 4),
+                      // Status Icon (Shield/Language) separated
+                      Icon(
+                        browser.snifferActive
+                            ? Icons.shield_rounded
+                            : Icons.language_rounded,
+                        size: 18,
+                        color: browser.snifferActive
+                            ? AppColors.success
+                            : AppColors.textFaint,
+                      ),
+                      const SizedBox(width: 8),
                       // URL field
                       Expanded(
-                        child: Focus(
-                          onFocusChange: (f) => setState(() => _urlBarFocused = f),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 250),
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceHigh,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: _urlBarFocused
-                                    ? AppColors.accent.withValues(alpha: 0.5)
-                                    : AppColors.border.withValues(alpha: 0.4),
-                                width: _urlBarFocused ? 1.2 : 0.8,
-                              ),
-                              boxShadow: _urlBarFocused
-                                  ? [
-                                      BoxShadow(
-                                        color: AppColors.accent
-                                            .withValues(alpha: 0.1),
-                                        blurRadius: 12,
-                                      ),
-                                    ]
-                                  : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 250),
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceHigher,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _urlBarFocused
+                                  ? AppColors.primary.withValues(alpha: 0.6)
+                                  : AppColors.border.withValues(alpha: 0.3),
+                              width: 1,
                             ),
-                            child: Row(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 10),
-                                  child: Icon(
-                                    browser.snifferActive
-                                        ? Icons.shield_rounded
-                                        : Icons.language_rounded,
-                                    size: 16,
-                                    color: browser.snifferActive
-                                        ? AppColors.success
-                                        : AppColors.textFaint,
-                                  ),
+                          ),
+                          child: Focus(
+                            onFocusChange: (f) => setState(() => _urlBarFocused = f),
+                            child: TextField(
+                              controller: _urlBarController,
+                              textInputAction: TextInputAction.go,
+                              onSubmitted: _navigateToUrl,
+                              textAlignVertical: TextAlignVertical.center,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+                                hintText: 'Search or enter URL…',
+                                hintStyle: const TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textFaint,
                                 ),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _urlBarController,
-                                    textInputAction: TextInputAction.go,
-                                    onSubmitted: _navigateToUrl,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                    decoration: const InputDecoration(
-                                      border: InputBorder.none,
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                                      hintText: 'Search or enter URL…',
-                                      hintStyle: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textFaint,
-                                      ),
-                                      isDense: true,
-                                      filled: false,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                                isDense: true,
+                                suffixIcon: _urlBarController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.textFaint),
+                                        onPressed: () {
+                                          _urlBarController.clear();
+                                          setState(() {});
+                                        },
+                                        splashRadius: 16,
+                                      )
+                                    : null,
+                              ),
+                              onChanged: (_) => setState(() {}),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 6),
                       _NavIconButton(
                         icon: Icons.refresh_rounded,
                         onTap: _reload,

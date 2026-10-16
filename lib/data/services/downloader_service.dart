@@ -84,6 +84,20 @@ class DownloaderService {
         : FileUtils.sanitizeFileName(request.fileName);
     final savePath = p.join(directory.path, fileName);
 
+    // A second tap (or a retry racing the first request) must not queue the
+    // same file twice - return the download that is already in flight.
+    for (final candidate in _tasks.values) {
+      final isActive = candidate.status == DownloadStatus.queued ||
+          candidate.status == DownloadStatus.running ||
+          candidate.status == DownloadStatus.paused ||
+          candidate.status == DownloadStatus.merging;
+      if (isActive &&
+          candidate.savePath == savePath &&
+          candidate.url == request.url) {
+        return candidate;
+      }
+    }
+
     final task = DownloadTask(
       id: id,
       url: request.url,

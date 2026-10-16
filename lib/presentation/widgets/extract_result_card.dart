@@ -10,26 +10,40 @@ import '../../data/models/extract_result.dart';
 import '../../logic/providers.dart';
 import 'format_picker_sheet.dart';
 
-class ExtractResultCard extends ConsumerWidget {
+class ExtractResultCard extends ConsumerStatefulWidget {
   const ExtractResultCard({super.key, required this.result});
 
   final ExtractResult result;
 
+  @override
+  ConsumerState<ExtractResultCard> createState() => _ExtractResultCardState();
+}
+
+class _ExtractResultCardState extends ConsumerState<ExtractResultCard> {
+  /// True while an ad is being shown, so a second tap cannot queue a duplicate.
+  bool _busy = false;
+  /// True when the download has successfully started, updating UI.
+  bool _downloadStarted = false;
+
+  ExtractResult get result => widget.result;
+
   Future<void> _download(BuildContext context, WidgetRef ref) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _runDownload(context, ref);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runDownload(BuildContext context, WidgetRef ref) async {
     final selection = await showFormatPickerSheet(context, result);
     if (selection == null) return;
 
-    // Show an interstitial ad before starting the download.
-    final adService = ref.read(adServiceProvider);
-    final adShown = await adService.showAd();
-    if (!adShown && AdConfig.diagnosticsToUi && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ad not shown — ${adService.status}'),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-    }
+    // Rewarded ad before the download. If no ad is available - ad blocker, no
+    // fill, or offline - the download simply proceeds. There is no fallback.
+    await ref.read(adServiceProvider).showAd();
 
     final downloads = ref.read(downloadControllerProvider);
     final suggested = result.suggestedFilename;
@@ -83,8 +97,11 @@ class ExtractResultCard extends ConsumerWidget {
 
     ref.read(libraryControllerProvider).refresh();
     if (context.mounted) {
+      setState(() {
+        _downloadStarted = true;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Download started')),
+        const SnackBar(content: Text('Download started! Check Library tab.')),
       );
     }
   }
@@ -113,7 +130,7 @@ class ExtractResultCard extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final meta = <String>[
       if (result.uploader != null) result.uploader!,
       if (result.durationLabel != null) result.durationLabel!,
@@ -198,12 +215,35 @@ class ExtractResultCard extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: () => _download(context, ref),
-                        icon: const Icon(Icons.download_rounded, size: 20),
-                        label: const Text('Download'),
+                        onPressed: (_busy || _downloadStarted) ? null : () => _download(context, ref),
+                        icon: _busy
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : _downloadStarted
+                                ? const Icon(Icons.check_circle_rounded, size: 20)
+                                : const Icon(Icons.download_rounded, size: 20),
+                        label: Text(
+                          _busy
+                              ? 'Preparing...'
+                              : _downloadStarted
+                                  ? 'Added to Library'
+                                  : 'Download',
+                        ),
                         style: FilledButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: _downloadStarted ? AppColors.success : AppColors.primary,
+                          disabledBackgroundColor: _downloadStarted 
+                              ? AppColors.success.withValues(alpha: 0.6) 
+                              : null,
+                          disabledForegroundColor: _downloadStarted 
+                              ? Colors.white 
+                              : null,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
